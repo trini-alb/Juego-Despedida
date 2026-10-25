@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Encuentra tus cartas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@500;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --celeste: #49bdd9;
+      --crema: #fdf6e9;
+      --violeta: #42206f;
+      --negro: #000;
+      --pasto: #6fbf4a;
+      --camino: #a8a8a8;
+      --pixel: "Press Start 2P", "Courier New", monospace;
+      --texto: "JetBrains Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      background: var(--crema);
+      font-family: var(--texto);
+    }
+
+    /* ---------- Pantallas ---------- */
+    .pantalla {
+      display: none;
+      position: fixed;
+      inset: 0;
+      margin: 0 auto;
+      max-width: 480px;
+      overflow: hidden;
+      padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    }
+
+    .pantalla.activa {
+      display: block;
+    }
+
+    /* Fondo: triángulo celeste + chevrón negro (como en el diseño) */
+    .fondo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--crema);
+      z-index: 0;
+      pointer-events: none;
+    }
+    #pantalla-final.activa {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .contenedor-tarjeta {
+      position: relative;
+      z-index: 1;
+      background-color: var(--crema);
+      padding: 28px 16px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px var(--celeste);
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* título más chico para que ENCONTRASTE entre en la tarjeta */
+    .contenedor-tarjeta .titulo {
+      margin: 0;
+      font-size: clamp(14px, 5vw, 26px);
+    }
+    .contenido {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 0 5%;
+    }
+
+    .titulo {
+      font-family: var(--pixel);
+      color: var(--violeta);
+      text-shadow: 3px 3px 0 #fff, 5px 5px 0 #1fb4d6;
+      font-size: clamp(22px, 8vw, 38px);
+      line-height: 1.7;
+      margin: 18vh 0 0;
+      text-align: center;
+      width: 100%;
+    }
+
+    .consigna {
+      font-family: var(--texto);
+      font-weight: 700;
+      font-size: clamp(22px, 7.5vw, 36px);
+      line-height: 1.25;
+      margin: 12vh 0 0;
+    }
+
+    .boton-pixel {
+      font-family: var(--pixel);
+      font-size: 22px;
+      letter-spacing: 2px;
+      color: #1b3a63;
+      background: #55ccea;
+      border: 4px solid #1b3a63;
+      border-radius: 12px;
+      box-shadow: inset 0 5px 0 #aee8de, inset 0 -6px 0 #3fa8c9;
+      padding: 20px 46px;
+      cursor: pointer;
+      margin-top: auto;
+      margin-bottom: 7vh;
+    }
+
+    .boton-pixel:active {
+      transform: translateY(2px);
+    }
+
+    .pista {
+      position: absolute;
+      right: 12%;
+      bottom: 7vh;
+      font-size: 46px;
+      z-index: 1;
+      cursor: pointer;
+    }
+
+    /* ---------- Juego ---------- */
+    #pantalla-juego {
+      background: var(--pasto);
+    }
+
+    #pantalla-juego .pasto {
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, .05) 0 6px, transparent 6px 12px),
+        linear-gradient(#7ccb55, #5fae3e);
+    }
+
+    .hud {
+      position: absolute;
+      top: calc(env(safe-area-inset-top) + 10px);
+      left: 14px;
+      right: 14px;
+      display: flex;
+      justify-content: space-between;
+      z-index: 3;
+      font-size: 26px;
+    }
+
+    .llave-hud {
+      filter: grayscale(1) opacity(.5);
+      transition: .3s;
+      margin-left: 6px;
+    }
+
+    .llave-hud.ok {
+      filter: none;
+    }
+
+    #laberinto {
+      position: absolute;
+      left: 50%;
+      top: 62px;
+      transform: translateX(-50%);
+      display: grid;
+      z-index: 2;
+    }
+
+    .celda {
+      width: var(--c);
+      height: var(--c);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: calc(var(--c) * .62);
+    }
+
+    .celda.camino {
+      background: var(--camino);
+    }
+
+    .celda img {
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+    }
+
+    .cruz {
+      position: absolute;
+      right: 14px;
+      bottom: calc(env(safe-area-inset-bottom) + 14px);
+      width: 168px;
+      height: 168px;
+      z-index: 3;
+    }
+
+    .cruz button {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 0;
+      background: #fff;
+      font-size: 22px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, .3);
+    }
+
+    .cruz button:active {
+      background: #ddd;
+    }
+
+    .b-arriba {
+      top: 0;
+      left: 56px;
+    }
+
+    .b-abajo {
+      bottom: 0;
+      left: 56px;
+    }
+
+    .b-izq {
+      top: 56px;
+      left: 0;
+    }
+
+    .b-der {
+      top: 56px;
+      right: 0;
+    }
+
+    /* ---------- Preguntas ---------- */
+    #modal {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background: rgba(0, 0, 0, .6);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #modal.abierto {
+      display: flex;
+    }
+
+    .tarjeta {
+      background: var(--crema);
+      border: 4px solid var(--violeta);
+      border-radius: 14px;
+      padding: 22px 18px;
+      width: 100%;
+      box-shadow: 6px 6px 0 var(--violeta);
+    }
+
+    .tarjeta h2 {
+      font-family: var(--texto);
+      font-size: 20px;
+      margin: 0 0 16px;
+      line-height: 1.3;
+    }
+
+    .opcion {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      padding: 14px 12px;
+      font-family: var(--texto);
+      font-weight: 700;
+      font-size: 16px;
+      text-align: left;
+      background: #fff;
+      border: 3px solid #1b3a63;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .opcion:active {
+      background: #d9f3fa;
+    }
+
+    .opcion.mal {
+      background: #ffb3b3;
+    }
+
+    .opcion.bien {
+      background: #b8f0b0;
+    }
+
+    .mensaje {
+      min-height: 22px;
+      margin-top: 12px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .aviso {
+      position: absolute;
+      left: 50%;
+      top: 56%;
+      transform: translate(-50%, -50%);
+      background: var(--crema);
+      border: 4px solid var(--violeta);
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-weight: 700;
+      z-index: 5;
+      max-width: 85%;
+      text-align: center;
+      display: none;
+    }
+
+    .sobre-boton {
+      background: none;
+      border: 0;
+      margin-top: 7vh;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .sobre-boton svg {
+      width: 62vw;
+      max-width: 270px;
+      transition: transform .2s;
+    }
+
+    .sobre-boton:active svg {
+      transform: scale(.94);
+    }
+
+    .toca {
+      font-weight: 700;
+      font-size: 18px;
+      margin: 6px 0 0;
+    }
+
+    .foto-final {
+      position: absolute;
+      bottom: 4vh;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(62vw, 300px);
+      z-index: 1;
+      border-radius: 6px;
+    }
+
+    .foto-final.vacia {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <section id="pantalla-inicio" class="pantalla activa">
+    <svg class="fondo" viewBox="0 0 819 1456" preserveAspectRatio="none" aria-hidden="true">
+      <polygon fill="#49bdd9" points="0,0 819,0 819,415 409,1000 0,415" />
+      <polygon fill="#000" points="0,595 409,1180 819,595 819,788 409,1373 0,788" />
+    </svg>
+    <div class="contenido">
+      <h1 class="titulo">ENCUENTRA<br>TUS<br>CARTAS</h1>
+      <button class="boton-pixel" id="btn-start">COMENZAR</button>
+    </div>
+  </section>
+
+  <!-- ============ 2. INSTRUCCIONES ============ -->
+  <section id="pantalla-instrucciones" class="pantalla">
+    <svg class="fondo" viewBox="0 0 819 1456" preserveAspectRatio="none" aria-hidden="true">
+      <polygon fill="#49bdd9" points="0,0 819,0 819,415 409,1000 0,415" />
+      <polygon fill="#000" points="0,595 409,1180 819,595 819,788 409,1373 0,788" />
+    </svg>
+    <div class="contenido">
+      <p class="consigna" style="margin-top:6vh">Responde correctamente las preguntas para obtener las llaves y abrir el
+        cofre</p>
+    </div>
+    <div class="pista" id="btn-seguir" role="button" aria-label="Continuar">➡️</div>
+  </section>
+
+  <!-- ============ 3. JUEGO ============ -->
+  <section id="pantalla-juego" class="pantalla">
+    <div class="pasto"></div>
+    <div class="hud">
+      <div id="vidas"></div>
+      <div id="llaves"></div>
+    </div>
+    <div id="laberinto"></div>
+    <div class="aviso" id="aviso"></div>
+
+    <div class="cruz">
+      <button class="b-arriba" data-dx="0" data-dy="-1" aria-label="Arriba">▲</button>
+      <button class="b-izq" data-dx="-1" data-dy="0" aria-label="Izquierda">◀</button>
+      <button class="b-der" data-dx="1" data-dy="0" aria-label="Derecha">▶</button>
+      <button class="b-abajo" data-dx="0" data-dy="1" aria-label="Abajo">▼</button>
+    </div>
+
+    <div id="modal">
+      <div class="tarjeta">
+        <h2 id="pregunta"></h2>
+        <div id="opciones"></div>
+        <div class="mensaje" id="mensaje"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. FINAL ============ -->
+  <section id="pantalla-final" class="pantalla">
+    <svg class="fondo" viewBox="0 0 819 1456" preserveAspectRatio="none" aria-hidden="true">
+      <polygon fill="#49bdd9" points="0,0 819,0 819,415 409,1000 0,415" />
+      <polygon fill="#000" points="0,595 409,1180 819,595 819,788 409,1373 0,788" />
+    </svg>
+    <div class="contenedor-tarjeta">
+      <h1 class="titulo">ENCONTRASTE<br>TUS<br>CARTAS</h1>
+      <!-- El enlace descarga el PDF -->
+      <a class="sobre-boton" id="sobre"
+        href="https://drive.google.com/drive/folders/1VaeenqrlEgCbwtbAErhZZXj8jBYu6rgk?usp=drive_link"
+        aria-label="Abrir cartas">
+        <svg viewBox="0 0 250 170">
+          <rect x="8" y="22" width="234" height="140" rx="12" fill="#000" />
+          <polygon points="8,22 125,100 242,22 242,10 8,10" fill="#000" />
+          <polyline points="14,24 125,100 236,24" fill="none" stroke="#49bdd9" stroke-width="12" stroke-linejoin="round"
+            stroke-linecap="round" />
+        </svg>
+      </a>
+      <p class="toca">Toca el sobre para abrir tus cartas 👻</p>
+    </div>
+  </section>
+
+  <script>
+
+    const PREGUNTAS = [
+      {
+        texto: "Pregunta 1: ¿Qué palabra te enseñó a decir tu abuela (VI)?",
+        opciones: ["Café", "Agua", "Abuela"],
+        correcta: 1
+      },
+      {
+        texto: "Pregunta 2: ¿Cómo pensaste que se hacia la leche en polvo?",
+        opciones: ["Rayando a la vaca", "Secando la leche al sol", "Congelando y rayando la leche"],
+        correcta: 0
+      },
+      {
+        texto: "Pregunta 3: ¿Quién inentó tu apodo?",
+        opciones: ["Tu mamá", "Tu papá", "Tu hermana"],
+        correcta: 2
+      }
+    ];
+
+    const IMAGEN_PERSONAJE = "";
+    const IMAGEN_COFRE = "";
+    const EMOJI_PERSONAJE = "😈";
+    const EMOJI_COFRE = "🧰";
+    const VIDAS = 3;
+
+    const MAPA = [
+      "S..##",
+      "#.###",
+      "#...1",
+      "#.##.",
+      "#.##.",
+      ".2...",
+      "#.###",
+      "#.###",
+      "#...3",
+      "#.##.",
+      "#.##.",
+      "#C...",
+    ];
+
+
+    const $ = id => document.getElementById(id);
+    const pantallas = ["inicio", "instrucciones", "juego", "final"];
+    function ir(nombre) {
+      pantallas.forEach(p => $("pantalla-" + p).classList.toggle("activa", p === nombre));
+    }
+
+    $("btn-start").onclick = () => ir("instrucciones");
+    $("btn-seguir").onclick = () => { ir("juego"); iniciarJuego(); };
+
+    let pos, vidas, llaves, respondidas, bloqueado;
+
+    function iniciarJuego() {
+      vidas = VIDAS; llaves = 0; respondidas = {}; bloqueado = false;
+      construirMapa();
+      dibujarHUD();
+    }
+
+    function construirMapa() {
+      const filas = MAPA.length, cols = MAPA[0].length;
+      const lab = $("laberinto");
+      const c = Math.floor(Math.min(
+        Math.min(window.innerWidth, 480) * 0.92 / cols,
+        (window.innerHeight - 240) / filas
+      ));
+      lab.style.setProperty("--c", c + "px");
+      lab.style.gridTemplateColumns = `repeat(${cols}, ${c}px)`;
+      lab.innerHTML = "";
+      MAPA.forEach((fila, y) => [...fila].forEach((ch, x) => {
+        const d = document.createElement("div");
+        d.className = "celda" + (ch === "#" ? "" : " camino");
+        d.id = `c-${x}-${y}`;
+        if (ch === "S") pos = { x, y };
+        if ("123".includes(ch)) d.textContent = "🔑";
+        if (ch === "C") d.appendChild(imagenOEmoji(IMAGEN_COFRE, EMOJI_COFRE));
+        lab.appendChild(d);
+      }));
+      dibujarPersonaje();
+    }
+
+    function imagenOEmoji(src, emoji) {
+      if (!src) return document.createTextNode(emoji);
+      const img = document.createElement("img");
+      img.src = src;
+      img.onerror = () => img.replaceWith(document.createTextNode(emoji));
+      return img;
+    }
+
+    function dibujarPersonaje() {
+      document.querySelectorAll(".jugador").forEach(n => n.remove());
+      const cel = $(`c-${pos.x}-${pos.y}`);
+      const wrap = document.createElement("span");
+      wrap.className = "jugador";
+      wrap.style.cssText = "position:absolute;width:var(--c);height:var(--c);display:flex;align-items:center;justify-content:center;";
+      wrap.appendChild(imagenOEmoji(IMAGEN_PERSONAJE, EMOJI_PERSONAJE));
+      wrap.firstChild.style && (wrap.firstChild.style.width = "100%");
+      cel.style.position = "relative";
+      cel.appendChild(wrap);
+      wrap.style.left = "0"; wrap.style.top = "0";
+    }
+
+    function dibujarHUD() {
+      $("vidas").textContent = "❤️".repeat(vidas) + "🖤".repeat(VIDAS - vidas);
+      $("llaves").innerHTML = [0, 1, 2].map(i =>
+        `<span class="llave-hud ${i < llaves ? "ok" : ""}">🔑</span>`).join("");
+    }
+
+    function aviso(txt, ms = 1800) {
+      const a = $("aviso"); a.textContent = txt; a.style.display = "block";
+      clearTimeout(aviso.t); aviso.t = setTimeout(() => a.style.display = "none", ms);
+    }
+
+    function mover(dx, dy) {
+      if (bloqueado) return;
+      const nx = pos.x + dx, ny = pos.y + dy;
+      if (!MAPA[ny] || !MAPA[ny][nx] || MAPA[ny][nx] === "#") return;
+      pos = { x: nx, y: ny };
+      dibujarPersonaje();
+
+      const ch = MAPA[ny][nx];
+      if ("123".includes(ch) && !respondidas[ch]) preguntar(Number(ch) - 1, ch);
+      if (ch === "C") {
+        if (llaves >= 3) { bloqueado = true; setTimeout(() => ir("final"), 500); }
+        else aviso(`Te faltan ${3 - llaves} llave(s) para abrir el cofre`);
+      }
+    }
+
+    document.querySelectorAll(".cruz button").forEach(b => {
+      b.addEventListener("click", () => mover(+b.dataset.dx, +b.dataset.dy));
+    });
+    document.addEventListener("keydown", e => {
+      const m = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key];
+      if (m) { e.preventDefault(); mover(...m); }
+    });
+
+    function preguntar(i, clave) {
+      const q = PREGUNTAS[i];
+      bloqueado = true;
+      $("pregunta").textContent = q.texto;
+      $("mensaje").textContent = "";
+      const cont = $("opciones"); cont.innerHTML = "";
+      q.opciones.forEach((txt, idx) => {
+        const b = document.createElement("button");
+        b.className = "opcion"; b.textContent = txt;
+        b.onclick = () => responder(b, idx === q.correcta, clave);
+        cont.appendChild(b);
+      });
+      $("modal").classList.add("abierto");
+    }
+
+    function responder(btn, ok, clave) {
+      if (ok) {
+        btn.classList.add("bien");
+        $("mensaje").textContent = "¡Correcto! Conseguiste una llave 🔑";
+        respondidas[clave] = true; llaves++;
+        setTimeout(() => {
+          $("modal").classList.remove("abierto");
+          document.getElementById(`c-${pos.x}-${pos.y}`).childNodes.forEach(n => {
+            if (n.nodeType === 3) n.textContent = "";
+          });
+          bloqueado = false; dibujarHUD();
+          if (llaves === 3) aviso("¡Tenés las 3 llaves! Ya podés abrir el cofre", 2500);
+        }, 900);
+      } else {
+        btn.classList.add("mal"); btn.disabled = true;
+        vidas--; dibujarHUD();
+        if (vidas <= 0) {
+          $("mensaje").textContent = "Sin vidas… ¡probá de nuevo!";
+          setTimeout(() => { $("modal").classList.remove("abierto"); iniciarJuego(); }, 1200);
+        } else {
+          $("mensaje").textContent = "Esa no es. ¡Probá otra!";
+        }
+      }
+    }
+
+    window.addEventListener("resize", () => {
+      if ($("pantalla-juego").classList.contains("activa")) { construirMapa(); }
+    });
+  </script>
+</body>
+
+</html>
